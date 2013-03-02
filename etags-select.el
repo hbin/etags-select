@@ -177,18 +177,16 @@ Only works with GNU Emacs."
   "Insert matches to tagname in tag-file."
   (let ((tag-table-buffer (etags-select-get-tag-table-buffer tag-file))
         (tag-file-path (file-name-directory tag-file))
-        (tag-regex (concat "^.*?\\(" "\^?\\(.+[:.']" tagname "\\)\^A"
-                           "\\|" "\^?" tagname "\^A"
-                           "\\|" "\\<" tagname "[ \f\t()=,;]*\^?[0-9,]"
-                           "\\)"))
+        (tag-regex (concat "\" tagname "\"))
         (case-fold-search (etags-select-case-fold-search))
         full-tagname tag-line filename current-filename)
     (set-buffer tag-table-buffer)
     (modify-syntax-entry ?_ "w")
+
     (goto-char (point-min))
     (while (search-forward tagname nil t)
       (beginning-of-line)
-      (when (re-search-forward tag-regex (point-at-eol) 'goto-eol)
+      (when (search-forward tag-regex (point-at-eol) 'goto-eol)
         (setq full-tagname (or (etags-select-match-string 2) tagname))
         (setq tag-count (1+ tag-count))
         (beginning-of-line)
@@ -342,7 +340,7 @@ Use the C-u prefix to prevent the etags-select window from closing."
       (setq filename (etags-select-match-string 1))
       (setq filename-point (point))
       (goto-char tag-point)
-      (while (re-search-backward (concat "^.*?\\]\\s-+" text-to-search-for) filename-point t)
+      (while (re-search-backward (concat "^.*?\\]\\s-+" text-to-search-for "\\( +\\|#.*\\| +#.*\\)?$") filename-point t)
         (setq search-count (1+ search-count)))
       (goto-char tag-point)
       (unless arg
@@ -359,7 +357,7 @@ Use the C-u prefix to prevent the etags-select window from closing."
         (find-file filename))
       (goto-char (point-min))
       (while (> search-count 0)
-        (unless (re-search-forward (concat "^\\s-*" text-to-search-for) nil t)
+        (unless (re-search-forward (concat "^\\s-*" text-to-search-for "\\( +\\|#.*\\| +#.*\\)?$") nil t)
           (message "TAGS file out of date ... stopping at closest match")
           (setq search-count 1))
         (setq search-count (1- search-count)))

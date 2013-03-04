@@ -208,24 +208,25 @@ found, don't open the selection window."
   "Do a find-tag, and display all exact matches.  If only one match is
 found, don't open the selection window."
   (interactive)
-  (setq etags-select-source-buffer (buffer-name))
   (let* ((default (find-tag-default))
          (tagname (completing-read
                    (format "Find tag (default %s): " default)
-                   'etags-select-complete-tag nil nil nil 'find-tag-history default)))
+                   (lambda (string predicate what)
+                     (etags-select-complete-tag string predicate what (buffer-name)))
+                   nil nil nil 'find-tag-history default)))
     (etags-select-find tagname)))
 
-(defun etags-select-complete-tag (string predicate what)
+(defun etags-select-complete-tag (string predicate what buffer)
   "Tag completion."
-  (etags-select-build-completion-table)
+  (etags-select-build-completion-table buffer)
   (if (eq what t)
       (all-completions string (etags-select-get-completion-table) predicate)
     (try-completion string (etags-select-get-completion-table) predicate)))
 
-(defun etags-select-build-completion-table ()
+(defun etags-select-build-completion-table (buffer)
   "Build tag completion table."
   (save-excursion
-    (set-buffer etags-select-source-buffer)
+    (set-buffer buffer)
     (let ((tag-files (etags-select-get-tag-files)))
       (mapcar (lambda (tag-file) (etags-select-get-tag-table-buffer tag-file)) tag-files))))
 
@@ -261,33 +262,34 @@ found, don't open the selection window."
 
 (defun etags-select-find (tagname)
   "Core tag finding function."
-  (let ((tag-files (etags-select-get-tag-files))
-        (tag-count 0))
-    (setq etags-select-source-buffer (buffer-name))
-    (get-buffer-create etags-select-buffer-name)
-    (set-buffer etags-select-buffer-name)
-    (setq buffer-read-only nil)
-    (erase-buffer)
-    (insert "Finding tag: " tagname "\n")
-    (mapcar (lambda (tag-file)
-              (setq tag-count (etags-select-insert-matches tagname tag-file tag-count)))
-            tag-files)
-    (cond ((= tag-count 0)
-           (message (concat "No matches for tag \"" tagname "\""))
-           (ding))
-          ((= tag-count 1)
-           (set-buffer etags-select-buffer-name)
-           (goto-char (point-min))
-           (etags-select-next-tag)
-           (etags-select-goto-tag))
-          (t
-           (set-buffer etags-select-buffer-name)
-           (goto-char (point-min))
-           (etags-select-next-tag)
-           (set-buffer-modified-p nil)
-           (setq buffer-read-only t)
-           (switch-to-buffer etags-select-buffer-name)
-           (etags-select-mode tagname)))))
+  (when tagname
+    (let ((tag-files (etags-select-get-tag-files))
+          (tag-count 0))
+      (setq etags-select-source-buffer (buffer-name))
+      (get-buffer-create etags-select-buffer-name)
+      (set-buffer etags-select-buffer-name)
+      (setq buffer-read-only nil)
+      (erase-buffer)
+      (insert "Finding tag: " tagname "\n")
+      (mapcar (lambda (tag-file)
+                (setq tag-count (etags-select-insert-matches tagname tag-file tag-count)))
+              tag-files)
+      (cond ((= tag-count 0)
+             (message (concat "No matches for tag \"" tagname "\""))
+             (ding))
+            ((= tag-count 1)
+             (set-buffer etags-select-buffer-name)
+             (goto-char (point-min))
+             (etags-select-next-tag)
+             (etags-select-goto-tag))
+            (t
+             (set-buffer etags-select-buffer-name)
+             (goto-char (point-min))
+             (etags-select-next-tag)
+             (set-buffer-modified-p nil)
+             (setq buffer-read-only t)
+             (switch-to-buffer etags-select-buffer-name)
+             (etags-select-mode tagname))))))
 
 (defun etags-select-goto-tag (&optional other-window)
   "Goto the file/line of the tag under the cursor."
